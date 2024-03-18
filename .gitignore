@@ -4,6 +4,6 @@
 
 *.h
 
-libbpf/
+libbpf
 
-.vscode/
+.vscode
