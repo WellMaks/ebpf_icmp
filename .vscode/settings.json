@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "bpf.h": "c",
+        "vmlinux.h": "c",
+        "if.h": "c",
+        "bpf_tracing.h": "c"
+    }
+}
