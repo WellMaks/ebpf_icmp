@@ -18,12 +18,16 @@ BPF_OBJ := icmp.bpf.o
 SKELETON_SRC := icmp.skel.h
 USER_SRC := icmp.c
 USER_BIN := icmp
+VMLINUX_H := vmlinux.h
 
 # Default target
-all: $(USER_BIN)
+all: $(VMLINUX_H) $(USER_BIN)
 
-$(BPF_OBJ): $(BPF_SRC)
-	$(CLANG) $(CLANG_FLAGS) -c $< -o $@
+$(VMLINUX_H):
+	$(BPFTOOL) btf dump file /sys/kernel/btf/vmlinux format c > $@
+
+$(BPF_OBJ): $(BPF_SRC) $(VMLINUX_H)
+	$(CLANG) $(CLANG_FLAGS) -c $< -o $@ -include $(VMLINUX_H)
 
 $(SKELETON_SRC): $(BPF_OBJ)
 	$(BPFTOOL) gen skeleton $< > $@
@@ -32,6 +36,6 @@ $(USER_BIN): $(USER_SRC) $(SKELETON_SRC)
 	$(CC) $(CFLAGS) -o $@ $(USER_SRC) $(LIB_FLAGS) -Wl,-rpath,$(LIB_DIR)
 
 clean:
-	rm -f $(BPF_OBJ) $(USER_BIN) $(SKELETON_SRC)
+	rm -f $(BPF_OBJ) $(USER_BIN) $(SKELETON_SRC) $(VMLINUX_H)
 
 .PHONY: all clean

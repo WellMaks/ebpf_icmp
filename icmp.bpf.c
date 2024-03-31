@@ -22,7 +22,7 @@ struct {
     __uint(type, BPF_MAP_TYPE_HASH);
     __uint(max_entries, 256); 
     __type(key, u32); 
-    __type(value, u32); 
+    __type(value, u64); 
 } ping_counter SEC(".maps");
 
 
@@ -81,15 +81,21 @@ int ping(struct xdp_md *ctx) {
         struct ethhdr *eth = data;
         struct iphdr *iph = data + sizeof(struct ethhdr);
         struct icmphdr *icmph = (void *)(iph + 1);
+
         u32 src_ip = iph->saddr;
-        u32 *counter = bpf_map_lookup_elem(&ping_counter, &src_ip);
+        u64 *counter;
+        u64 new_count = 0;
+
+        counter = bpf_map_lookup_elem(&ping_counter, &src_ip);
         if (counter) {
-            (*counter)++;
-            bpf_map_update_elem(&ping_counter, &src_ip, counter, BPF_ANY);
+            new_count = *counter + 1;
         } else {
-            u32 initial_count = 1;
-            bpf_map_update_elem(&ping_counter, &src_ip, &initial_count, BPF_ANY);
+            new_count = 1;
         }
+
+        // Update the map with the new count
+        bpf_map_update_elem(&ping_counter, &src_ip, &new_count, BPF_ANY);
+        // bpf_printk("Updating counter for IP: %x, new count: %d\n", src_ip, new_count);
         
         if ((void *)icmph + sizeof(struct icmphdr) > data_end)
             return XDP_PASS;

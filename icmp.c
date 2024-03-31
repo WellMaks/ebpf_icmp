@@ -56,18 +56,26 @@ int main(int argc, char **argv) {
 
     printf("Successfully attached BPF program to %s\n", ifname);
 
+    struct bpf_map *map = bpf_object__find_map_by_name(skel->obj, "ping_counter");
+    if (!map) {
+        fprintf(stderr, "Failed to find ping_counter map\n");
+        return 1;
+    }
+
+    int fd = bpf_map__fd(map); 
+
     printf("Monitoring ICMP echo requests. Press Ctrl+C to stop.\n");
     while (1) {
-        u32 key, next_key;
+        u32 key, next_key = 0;
         u64 value;
-        int fd = bpf_map__fd(skel->maps.ping_counter);
-        while (bpf_map_get_next_key(fd, &key, &next_key) == 0) {
-            if (bpf_map_lookup_elem(fd, &next_key, &value) == 0) {
-                printf("IP: %d.%d.%d.%d - Count: %llu\n",
-                       (next_key & 0xFF), (next_key >> 8) & 0xFF,
-                       (next_key >> 16) & 0xFF, next_key >> 24, value);
+
+        while (bpf_map_get_next_key(fd, &next_key, &key) == 0) {
+            if (bpf_map_lookup_elem(fd, &key, &value) == 0) {
+            printf("IP: %d.%d.%d.%d - Count: %llu\n",
+                (ntohl(key) >> 24) & 0xFF, (ntohl(key) >> 16) & 0xFF,
+                (ntohl(key) >> 8) & 0xFF, ntohl(key) & 0xFF, value);
             }
-            key = next_key;
+            next_key = key;
         }
         sleep(1);
     }
